@@ -1,1 +1,2 @@
 # STM32F429_USB_HID_Multiple
+컴파일러의 Preprocessor에서 USE_USBD_COMPOSITE을 설정
