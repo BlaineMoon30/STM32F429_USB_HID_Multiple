@@ -92,7 +92,7 @@ void MX_USB_DEVICE_Init(void)
   }
 
   epAddr = HID_3_EPIN_ADDR;
-  if (USBD_RegisterClassComposite(&hUsbDeviceFS, &USBD_HID_3, CLASS_TYPE_HID, &epAddr) != USBD_OK)
+  if (USBD_RegisterClassComposite(&hUsbDeviceFS, &USBD_HID_3, CLASS_TYPE_HID_KEYBOARD, &epAddr) != USBD_OK)
   {
     Error_Handler();
   }

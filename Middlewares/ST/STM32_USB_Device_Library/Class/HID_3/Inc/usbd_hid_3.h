@@ -47,7 +47,7 @@ extern "C" {
 
 #define USB_HID_3_CONFIG_DESC_SIZ                    34U
 #define USB_HID_3_DESC_SIZ                           9U
-#define HID_3_MOUSE_REPORT_DESC_SIZE                 74U
+#define HID_3_MOUSE_REPORT_DESC_SIZE                 45U
 
 #define HID_3_DESCRIPTOR_TYPE                        0x21U
 #define HID_3_REPORT_DESC                            0x22U

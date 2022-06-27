@@ -41,6 +41,7 @@ EndBSPDependencies */
 
 #include "usbd_hid.h"
 #include "usbd_hid_2.h"
+#include "usbd_hid_3.h"
 
 #ifdef USE_USBD_COMPOSITE
 
@@ -106,6 +107,7 @@ static void  USBD_CMPSIT_AssignEp(USBD_HandleTypeDef *pdev, uint8_t Add, uint8_t
 
 #if USBD_CMPSIT_ACTIVATE_HID == 1U
 static void  USBD_CMPSIT_HIDMouseDesc(USBD_HandleTypeDef *pdev, uint32_t pConf, __IO uint32_t *Sze, uint8_t speed);
+static void  USBD_CMPSIT_HIDKeyboardDesc(USBD_HandleTypeDef *pdev, uint32_t pConf, __IO uint32_t *Sze, uint8_t speed);
 #endif /* USBD_CMPSIT_ACTIVATE_HID == 1U */
 
 #if USBD_CMPSIT_ACTIVATE_MSC == 1U
@@ -303,6 +305,33 @@ uint8_t  USBD_CMPSIT_AddToConfDesc(USBD_HandleTypeDef *pdev)
 
       /* Configure and Append the Descriptor */
       USBD_CMPSIT_HIDMouseDesc(pdev, (uint32_t)pCmpstFSConfDesc, &CurrFSConfDescSz, (uint8_t)USBD_SPEED_FULL);
+
+#ifdef USE_USB_HS
+      USBD_CMPSIT_HIDMouseDesc(pdev, (uint32_t)pCmpstHSConfDesc, &CurrHSConfDescSz, (uint8_t)USBD_SPEED_HIGH);
+#endif /* USE_USB_HS */
+
+      break;
+
+    case CLASS_TYPE_HID_KEYBOARD:
+      /* Setup Max packet sizes (for HID, no dependency on USB Speed, both HS/FS have same packet size) */
+      pdev->tclasslist[pdev->classId].CurrPcktSze = HID_EPIN_SIZE;
+
+      /* Find the first available interface slot and Assign number of interfaces */
+      idxIf = USBD_CMPSIT_FindFreeIFNbr(pdev);
+      pdev->tclasslist[pdev->classId].NumIf = 1U;
+      pdev->tclasslist[pdev->classId].Ifs[0] = idxIf;
+
+      /* Assign endpoint numbers */
+      pdev->tclasslist[pdev->classId].NumEps = 1U; /* EP1_IN */
+
+      /* Set IN endpoint slot */
+      iEp = pdev->tclasslist[pdev->classId].EpAdd[0];
+
+      /* Assign IN Endpoint */
+      USBD_CMPSIT_AssignEp(pdev, iEp, USBD_EP_TYPE_INTR, pdev->tclasslist[pdev->classId].CurrPcktSze);
+
+      /* Configure and Append the Descriptor */
+      USBD_CMPSIT_HIDKeyboardDesc(pdev, (uint32_t)pCmpstFSConfDesc, &CurrFSConfDescSz, (uint8_t)USBD_SPEED_FULL);
 
 #ifdef USE_USB_HS
       USBD_CMPSIT_HIDMouseDesc(pdev, (uint32_t)pCmpstHSConfDesc, &CurrHSConfDescSz, (uint8_t)USBD_SPEED_HIGH);
@@ -839,6 +868,45 @@ static void  USBD_CMPSIT_HIDMouseDesc(USBD_HandleTypeDef *pdev, uint32_t pConf,
   pHidMouseDesc->bNumDescriptors = 0x01U;
   pHidMouseDesc->bHIDDescriptorType = 0x22U;
   pHidMouseDesc->wItemLength = HID_MOUSE_REPORT_DESC_SIZE;
+  *Sze += (uint32_t)sizeof(USBD_HIDDescTypeDef);
+
+  /* Append Endpoint descriptor to Configuration descriptor */
+  __USBD_CMPSIT_SET_EP(pdev->tclasslist[pdev->classId].Eps[0].add, USBD_EP_TYPE_INTR, HID_EPIN_SIZE, \
+                       HID_HS_BINTERVAL, HID_FS_BINTERVAL);
+
+  /* Update Config Descriptor and IAD descriptor */
+  ((USBD_ConfigDescTypeDef *)pConf)->bNumInterfaces += 1U;
+  ((USBD_ConfigDescTypeDef *)pConf)->wTotalLength  = (uint16_t)(*Sze);
+}
+
+/**
+  * @brief  USBD_CMPSIT_HIDMouseDesc
+  *         Configure and Append the HID Mouse Descriptor
+  * @param  pdev: device instance
+  * @param  pConf: Configuration descriptor pointer
+  * @param  Sze: pointer to the current configuration descriptor size
+  * @retval None
+  */
+static void  USBD_CMPSIT_HIDKeyboardDesc(USBD_HandleTypeDef *pdev, uint32_t pConf,
+                                      __IO uint32_t *Sze, uint8_t speed)
+{
+  static USBD_IfDescTypeDef *pIfDesc;
+  static USBD_EpDescTypeDef *pEpDesc;
+  static USBD_HIDDescTypeDef *pHidMouseDesc;
+
+  /* Append HID Interface descriptor to Configuration descriptor */
+  __USBD_CMPSIT_SET_IF(pdev->tclasslist[pdev->classId].Ifs[0], 0U, \
+                       (uint8_t)(pdev->tclasslist[pdev->classId].NumEps), 0x03U, 0x01U, 0x01U, 0U);
+
+  /* Append HID Functional descriptor to Configuration descriptor */
+  pHidMouseDesc = ((USBD_HIDDescTypeDef *)(pConf + *Sze));
+  pHidMouseDesc->bLength = (uint8_t)sizeof(USBD_HIDDescTypeDef);
+  pHidMouseDesc->bDescriptorType = HID_DESCRIPTOR_TYPE;
+  pHidMouseDesc->bcdHID = 0x0111U;
+  pHidMouseDesc->bCountryCode = 0x00U;
+  pHidMouseDesc->bNumDescriptors = 0x01U;
+  pHidMouseDesc->bHIDDescriptorType = 0x22U;
+  pHidMouseDesc->wItemLength = HID_3_MOUSE_REPORT_DESC_SIZE;
   *Sze += (uint32_t)sizeof(USBD_HIDDescTypeDef);
 
   /* Append Endpoint descriptor to Configuration descriptor */
